@@ -1,6 +1,6 @@
 __pycache__/
 *.pyc
-*.ms2
+*.ms3
 *.wav
 *.opus
 *.mp3

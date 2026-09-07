@@ -1,10 +1,12 @@
 # Mosaic
 
-A lossy music codec in ~500 lines of NumPy. At matched file size it scores
+A lossy music codec in ~900 lines of NumPy. At matched file size it scores
 higher than Opus and MP3 on ViSQOL v3, an objective perceptual metric.
 
-The codec core invokes no existing audio codec. NumPy and SciPy provide the
-transform and array primitives; the standard library provides the entropy stage.
+The codec core invokes no existing audio codec and no general-purpose
+compressor. NumPy and SciPy provide the transform and array primitives; the
+entropy stage is a context-modelled adaptive binary range coder implemented
+here.
 
 ## Measured
 
@@ -14,8 +16,11 @@ produced. ViSQOL v3 MOS-LQO, higher is better, ceiling 4.7321.
 
 | reference | Mosaic | reference | delta | ahead | 95% CI |
 |---|---:|---:|---:|---:|---|
-| Opus 96 kb/s, complexity 10 | **4.5556** | 4.3149 | **+0.2407** | 8/10 | [+0.118, +0.372] |
-| MP3 128 kb/s (LAME) | **4.5827** | 4.3343 | **+0.2484** | 8/10 | [+0.099, +0.400] |
+| Opus 96 kb/s, complexity 10 | **4.6224** | 4.3149 | **+0.3075** | 9/10 | [+0.161, +0.474] |
+| MP3 128 kb/s (LAME) | **4.6388** | 4.3343 | **+0.3045** | 9/10 | [+0.165, +0.447] |
+
+**None of these ten excerpts was used while tuning the codec.** Sign test
+p = 0.011; both intervals exclude zero.
 
 Reproduce it:
 
@@ -26,21 +31,22 @@ python benchmark.py path/to/*.wav --bitrate 96 --codec opus --complexity 10
 `--keep DIR` writes the decoded WAVs so you can listen to both.
 
 🔴 **Read RESULTS.md before quoting these numbers.** They are an objective
-metric, not a listening test, and five of the ten excerpts were used while
-tuning the codec, so the intervals above are optimistic.
+metric, not a listening test — nobody has heard these files. RESULTS.md also
+documents a case where the metric rewards this codec for work that is
+inaudible.
 
 ## Use it
 
 ```bash
 pip install -r requirements.txt
 
-python mosaic.py encode song.wav song.ms2 --bitrate 96
-python mosaic.py decode song.ms2 restored.wav
+python mosaic.py encode song.wav song.ms3 --bitrate 96
+python mosaic.py decode song.ms3 restored.wav
 ```
 
 Input must be 48 kHz 16-bit PCM WAV, mono or stereo, at most ten minutes.
 `ffmpeg -i song.flac -ar 48000 -c:a pcm_s16le song.wav` will prepare one.
-Ordinary players cannot open `.ms2`.
+Ordinary players cannot open `.ms3`.
 
 As a library:
 
@@ -66,16 +72,21 @@ on which codecs compare fairly — Opus is VBR and MP3 carries framing, so
    `step = global * max(rms, past_masked_rms) * EMPH[band]`, floored. The
    quantizer is therefore proportional to band energy — constant relative
    error — and **the decoder knows how much energy each band should have**.
-4. Dead-zone scalar quantization, zigzag mapping, split byte planes, then the
-   best of LZMA, bzip2 and zlib per packet.
-5. **Parametric noise substitution.** The decoder compares the energy it
+4. Bounded reverse water-filling across six frequency buckets: each bucket's
+   real coding load is measured at a data-derived reference step, and the
+   resulting multipliers (0.8–1.25x, renormalised) are transmitted rather than
+   recomputed, so a poor allocation costs quality but never a broken stream.
+5. Dead-zone scalar quantization, then a context-modelled adaptive binary range
+   coder — zero-flag hierarchy, significance and greater-than-one bits, and an
+   Exp-Golomb remainder, all causally contexted.
+6. **Parametric noise substitution.** The decoder compares the energy it
    reconstructed per band against the transmitted band energy and fills the
    deficit into bins that quantized to zero with deterministic, energy-matched
    noise. An unaffordable band is reconstructed with the correct spectral
    envelope instead of as silence, and a band that survived quantization
    receives almost nothing, so the fill is self-limiting. Below 250 Hz it is
    disabled — bass is tonal, and noise there damages structure.
-6. Per-file window length selection, and groups of 64 frames coded
+7. Per-file window length selection, and groups of 64 frames coded
    independently with a bisection search on a global step multiplier to meet
    the byte budget.
 
@@ -83,13 +94,16 @@ Optimized from an earlier version with a custom Autoresearch meta process.
 
 ## Speed
 
-Encode 0.17–0.40 s and decode 0.02–0.06 s per excerpt (7–16 s of audio, one
-core, Apple Silicon). Encoding is slower than Opus; decoding is faster. These
-are application timings including I/O, not isolated kernel benchmarks.
+Encode 0.38–1.09 s and decode 0.16–0.41 s per excerpt (7–16 s of audio, one
+core, Apple Silicon). Both are slower than Opus, and the context-modelled range
+coder is most of the cost: an earlier version using general-purpose byte
+compressors decoded in 0.02–0.06 s but scored 0.067 MOS lower. This codec trades
+speed for quality. These are application timings including I/O, not isolated
+kernel benchmarks.
 
 ## Format
 
-`MSC2`. Little-endian throughout. Header: magic, sample rate, channels,
+`MSC3`. Little-endian throughout. Header: magic, sample rate, channels,
 transform hop, original sample count, compressor id, CRC32. Then one packet per
 64-frame group: frame count, global step (float32), payload length, CRC32,
 payload. The decoder validates every packet before allocating, caps

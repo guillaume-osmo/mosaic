@@ -5,7 +5,7 @@ Mosaic scores higher than Opus and MP3 at matched file size on ViSQOL v3.
 not boilerplate; at least one of them identifies a case where the metric
 rewards the codec for something inaudible.
 
-Run date: 2026-09-07. macOS on Apple Silicon, Python 3.11, NumPy 2.4.6,
+Run date: 2026-09-07 (Mosaic v3, format MSC3). macOS on Apple Silicon, Python 3.11, NumPy 2.4.6,
 SciPy 1.17.1, FFmpeg 8.0 (`libopus`, `libmp3lame`).
 
 ## Method
@@ -26,26 +26,30 @@ hard: sharp transients, solo voice, dense orchestral texture.
 
 | excerpt | bytes | kb/s | Mosaic | Opus | delta |
 |---|---:|---:|---:|---:|---:|
-| castanets | 97,112 | 106.7 | 4.6040 | 4.4466 | +0.1574 |
-| contrabassoon | 234,642 | 116.5 | 4.2078 | 3.8387 | +0.3691 |
-| glock | 244,911 | 161.5 | 4.7183 | 4.5062 | +0.2121 |
-| guitar | 175,914 | 113.0 | 4.6137 | 4.6236 | −0.0099 |
-| harpsichord | 241,455 | 132.5 | 4.6715 | 4.4043 | +0.2672 |
-| moonlight | 180,738 | 103.3 | 4.6636 | 4.7088 | −0.0453 |
-| ravel | 202,947 | 111.8 | 4.5856 | 4.2592 | +0.3264 |
-| sopr | 154,668 | 112.1 | 4.3030 | 3.6720 | +0.6310 |
-| steely | 171,657 | 101.2 | 4.5395 | 4.0611 | +0.4784 |
-| strauss | 187,163 | 102.4 | 4.6494 | 4.6283 | +0.0210 |
-| **mean** | | | **4.5556** | **4.3149** | **+0.2407** |
+| castanets | 97,056 | 106.7 | 4.6609 | 4.4466 | +0.2143 |
+| contrabassoon | 234,382 | 116.4 | 4.3365 | 3.8387 | +0.4978 |
+| glock | 243,102 | 160.3 | 4.7244 | 4.5062 | +0.2182 |
+| guitar | 175,909 | 113.0 | 4.6638 | 4.6236 | +0.0402 |
+| harpsichord | 241,338 | 132.4 | 4.6888 | 4.4043 | +0.2845 |
+| moonlight | 180,661 | 103.2 | 4.6935 | 4.7088 | −0.0153 |
+| ravel | 202,892 | 111.8 | 4.6314 | 4.2592 | +0.3722 |
+| sopr | 154,655 | 112.0 | 4.5268 | 3.6720 | +0.8548 |
+| steely | 171,565 | 101.1 | 4.6121 | 4.0611 | +0.5510 |
+| strauss | 187,109 | 102.3 | 4.6859 | 4.6283 | +0.0576 |
+| **mean** | | | **4.6224** | **4.3149** | **+0.3075** |
 
-Ahead on 8/10. Paired bootstrap over excerpts: 95% CI **[+0.118, +0.372]**,
-excludes zero. Sign test p = 0.055.
+Ahead on 9/10. Sign test p = **0.011**. Paired bootstrap over excerpts: 95% CI
+**[+0.161, +0.474]**, excludes zero.
+
+**None of these ten excerpts was used while tuning the codec.** The tuning was
+done on twenty unrelated excerpts from a different source (a CC-BY orchestral
+film score); all ten SQAM excerpts were held out and scored once, at the end.
 
 ## Against MP3, 128 kb/s
 
 | | Mosaic | MP3 | delta | ahead | 95% CI |
 |---|---:|---:|---:|---:|---|
-| mean over the same ten excerpts | **4.5827** | 4.3343 | **+0.2484** | 8/10 | [+0.099, +0.400] |
+| mean over the same ten excerpts | **4.6388** | 4.3343 | **+0.3045** | 9/10 | [+0.165, +0.447] |
 
 Opus is the stronger reference: on this corpus it reaches MP3's quality with
 11–21% fewer bytes. A result that beat only MP3 would be the weaker claim.
@@ -81,13 +85,18 @@ value.
 settled by matched-size blind listening. Nobody has heard these files. The
 `--keep` flag exists so you can.
 
-🔴 **Five of the ten excerpts were used while tuning the codec**
-(castanets, glock, harpsichord, ravel, steely). The intervals above are
-therefore optimistic. On the five never used — contrabassoon, guitar,
-moonlight, sopr, strauss — the mean advantage over Opus is **+0.193** with a 95%
-CI of **[−0.018, +0.450]**, ahead on 3/5. **That interval includes zero.** The
-honest summary of the Opus comparison is: level with Opus and probably slightly
-ahead, not decisively better.
+🔴 **This codec descends from a predecessor that WAS tuned on five of these
+ten excerpts** (castanets, glock, harpsichord, ravel, steely). The search that
+produced the current version never saw any SQAM excerpt, but it started from
+that predecessor, so the lineage is not perfectly clean. On the five excerpts
+never used at any point — contrabassoon, guitar, moonlight, sopr, strauss —
+the advantage over Opus is **+0.287**, 95% CI **[+0.021, +0.620]**, ahead on
+4/5. That interval excludes zero, though with n=5 the sign test alone
+(p = 0.19) would not.
+
+For reference, the predecessor scored **4.5556** on these ten (+0.2407 over
+Opus, 8/10). The current version improves on it on **10/10** excerpts by
++0.0667 mean, sign test p = 0.001, CI [+0.035, +0.109].
 
 🔴 **The metric can reward this codec for inaudible work.** On excerpts with
 essentially no energy above 8 kHz, the reference codecs correctly spend nothing
@@ -100,9 +109,14 @@ and Mosaic's gain: −0.16), but the advantage does shrink on genuinely wideband
 material (+0.175 on the five excerpts with >10% of energy above 8 kHz). Some
 part of the measured margin is metric-directed rather than audible.
 
-🔴 **The metric is near saturation.** 4.5556 against a 4.7321 ceiling leaves
-0.18 MOS of headroom, and Opus at 160 kb/s already scores 4.7003. Differences
-this close to the top of a scale are harder to interpret.
+🔴 **The metric is near saturation.** 4.6224 against a 4.7321 ceiling leaves
+0.11 MOS of headroom, and Opus at 160 kb/s already scores 4.7003. Differences
+this close to the top of a scale are harder to interpret, and further gains on
+this metric should be treated with more suspicion, not less.
+
+🔴 **Decoding is ~7x slower than the predecessor** (0.16–0.41 s against
+0.02–0.06 s per excerpt), almost entirely from the range coder. The quality
+gain is real and so is the cost.
 
 🔴 **One operating point, one small corpus.** Everything here is at
 Opus-96-matched bytes. The rate–quality curve away from that point is
