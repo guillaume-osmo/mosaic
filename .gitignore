@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+*.ms2
+*.wav
+*.opus
+*.mp3
+*.flac
+.pytest_cache/

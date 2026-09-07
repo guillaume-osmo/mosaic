@@ -1,0 +1,14 @@
+Mosaic
+Copyright 2026 Guillaume Godin
+
+This product includes software derived from ViSQOL
+(https://github.com/google/visqol), Copyright 2019 Google LLC, Andrew Hines,
+licensed under the Apache License, Version 2.0.
+
+Specifically:
+  - visqol.py is a NumPy reimplementation of ViSQOL v3 audio mode.
+  - models/libsvm_nu_svr_model.txt is redistributed unmodified from that
+    project and is the similarity-to-quality model used by ViSQOL v3.
+
+The Mosaic codec itself (mosaic.py) is an original implementation and is not
+derived from ViSQOL or from any audio codec.
